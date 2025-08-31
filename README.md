@@ -27,14 +27,14 @@ xduobnzct yljy
 
 The result:
 
-Found key length: 5, key: 'doubt' (shifts [3, 14, 20, 1, 19])
+Found key length: 5, key: 'doubt' (shifts [3, 14, 20, 1, 19])  
 
-Decryption: (key continues across lines: False)
-  vodyakamana three
-  nukamba one
-  marfic four
-  graffias two
-  upaniklis five
+Decryption: (key continues across lines: False)  
+  vodyakamana three  
+  nukamba one  
+  marfic four  
+  graffias two  
+  upaniklis five  
 
 
 The first word of each line is a system in the game followed by the order in which the megaship will be visiting each system.
