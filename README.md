@@ -10,19 +10,19 @@ COMMUNICATION BEACON
 THERE'S A SECRET THEY DON'T WANT US TO KNOW
 
 DECODING MESSAGE….TORA CODEX PROTOCOL///
-I'm aboard. My contact came through and my sources were right, something is definitely being kept a secret but nobody knows why. I managed to scan their jump manifest but it's incomplete, sorry.
+I'm aboard. My contact came through and my sources were right, something is definitely being kept a secret but nobody knows why. I managed to scan their jump manifest but it's incomplete, sorry.  
 
-Best thing you can do is find this ship and scan the manifest properly for all locations. I can't transmit again for fear of being discovered. The location order is listed, so my guess is that you will only be able to locate the ship in the target systems in short intervals.
+Best thing you can do is find this ship and scan the manifest properly for all locations. I can't transmit again for fear of being discovered. The location order is listed, so my guess is that you will only be able to locate the ship in the target systems in short intervals.  
 
-According to the manifest, it should restart a new run on 31st August at 18:00 UGT.
+According to the manifest, it should restart a new run on 31st August at 18:00 UGT.  
 
 I'm encrypting the manifest.
-If in ##doubt## your student, Vigenere, has the key.
-ycxztnogbgd hbsxh
-qiebfeo iox
-polgbf tivk
-jfugylom upr
-xduobnzct yljy
+If in ##doubt## your student, Vigenere, has the key.  
+ycxztnogbgd hbsxh  
+qiebfeo iox  
+polgbf tivk  
+jfugylom upr  
+xduobnzct yljy  
 """
 
 The result:
