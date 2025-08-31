@@ -1,0 +1,19 @@
+CRIB_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+ALPHABET = "abcdefghijklmnopqrstuvwxyz"
+WORD_INDICES = [1]
+CONTINUE_ACROSS_LINES: bool = False
+# CYPHERTEXT = [
+#     "mikmyrc hrw",
+#     "mowrmag mgs",
+#     "rxwlmrvcx xzkoi",
+#     "rxwlyyyp ysmk",
+#     "diqmjaoo jgoi",
+# ]
+
+CYPHERTEXT = [
+    "ycxztnogbgd hbsxh",
+    "qiebfeo iox",
+    "polgbf tivk",
+    "jfugylom upr",
+    "xduobnzct yljy",
+]
