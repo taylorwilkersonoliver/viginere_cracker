@@ -1,0 +1,312 @@
+from typing import List, Optional, Tuple, Iterable
+import config
+
+CRIB_WORDS = config.CRIB_WORDS
+WORD_INDICES: Iterable[int] = config.WORD_INDICES
+CONTINUE_ACROSS_LINES = config.CONTINUE_ACROSS_LINES
+cypher_text = config.CYPHERTEXT
+
+ALPHABET = config.ALPHABET
+LETTER_TO_INDEX = {c: i for i, c in enumerate(ALPHABET)}
+INDEX_TO_LETTER = {i: c for i, c in enumerate(ALPHABET)}
+
+
+def count_letters(text: str) -> int:
+    return sum(1 for ch in text if ch.isalpha())
+
+
+def build_letter_prefix(cypher_lines: List[str]) -> List[int]:
+    """
+    prefix[i] = total #letters in lines[0..i-1]
+    (i.e., letters BEFORE line i).
+    """
+    prefix: List[int] = [0] * len(cypher_lines)
+    running = 0
+    for i, line in enumerate(cypher_lines):
+        prefix[i] = running
+        running += count_letters(line)
+    return prefix
+
+
+def extract_word_letters_and_offset_in_line(
+        cyphertext_line: str, target_word_index: int
+) -> Tuple[Optional[int], str]:
+    """
+    Return (letters_before_target_word_in_this_line, target_word_letters).
+    Words are contiguous isalpha() runs. Offset counts letters only.
+    """
+    letters_seen_total = 0
+    current_word_index = -1
+    in_letter_run = False
+    offset_before_target: Optional[int] = None
+    target_letters: List[str] = []
+
+    for char in cyphertext_line:
+        if char.isalpha():
+            if not in_letter_run:
+                in_letter_run = True
+                current_word_index += 1
+                if current_word_index == target_word_index:
+                    offset_before_target = letters_seen_total
+            if current_word_index == target_word_index:
+                target_letters.append(char.lower())
+            letters_seen_total += 1
+        else:
+            in_letter_run = False
+
+    if offset_before_target is not None and target_letters:
+        return offset_before_target, "".join(target_letters)
+    return None, ""
+
+
+def apply_crib_constraints(
+        cypher_word_letters: str,
+        plain_word_letters: str,
+        letter_offset_total: int,
+        key_length: int,
+        current_key_shifts: List[Optional[int]],
+) -> bool:
+    """
+    Apply crib mapping (cypher -> plain) at absolute letter offset (from start of full text).
+    Updates current_key_shifts in place; returns False on conflict.
+    """
+    if len(cypher_word_letters) != len(plain_word_letters):
+        return False
+
+    for char_index in range(len(cypher_word_letters)):
+        cypher_char = cypher_word_letters[char_index]
+        plain_char = plain_word_letters[char_index]
+        if not (cypher_char.isalpha() and plain_char.isalpha()):
+            return False
+
+        key_position = (letter_offset_total + char_index) % key_length
+        required_shift = (LETTER_TO_INDEX[cypher_char] - LETTER_TO_INDEX[plain_char]) % 26
+
+        if current_key_shifts[key_position] is None:
+            current_key_shifts[key_position] = required_shift
+        elif current_key_shifts[key_position] != required_shift:
+            return False
+
+    return True
+
+
+def decrypt_lines_with_key_preserving_nonletters(
+        cypher_lines: List[str],
+        key_shifts: List[int],
+        continue_across_lines: bool = True,
+) -> List[str]:
+    """
+    Decrypt a list of lines, preserving non-letters, with optional key continuation across lines.
+    """
+    key_length = len(key_shifts)
+    decrypted_lines: List[str] = []
+    global_key_index = 0
+
+    for line in cypher_lines:
+        line_out: List[str] = []
+        local_key_index = 0
+        for ch in line:
+            if ch.isalpha():
+                base = ord("A") if ch.isupper() else ord("a")
+                use_index = global_key_index if continue_across_lines else local_key_index
+                shift = key_shifts[use_index % key_length]
+                line_out.append(chr((ord(ch) - base - shift) % 26 + base))
+                if continue_across_lines:
+                    global_key_index += 1
+                else:
+                    local_key_index += 1
+            else:
+                line_out.append(ch)
+        decrypted_lines.append("".join(line_out))
+    return decrypted_lines
+
+
+def solve_key_from_words(
+        cypher_lines: List[str],
+        word_indices: Iterable[int],
+        min_key_length: int = 1,
+        max_key_length: int = 64,
+        continue_across_lines: bool = True,
+) -> Optional[Tuple[int, List[int], str]]:
+    """
+    Use the specified word indices (0-based) across lines and cribs from config.CRIB_WORDS
+    to reconstruct a Vigenère key. Returns (key_length, key_shifts, key_string) only if
+    every key slot is fully constrained by crib matches; otherwise None.
+    """
+    # absolute letter offsets if continuing across lines
+    letter_prefix = build_letter_prefix(cypher_lines) if continue_across_lines else [0] * len(cypher_lines)
+
+    # Build constraint items: (absolute_letter_offset, letters_of_target_word)
+    constraint_items: List[Tuple[int, str]] = []
+    for line_idx, cyphertext_line in enumerate(cypher_lines):
+        for target_word_index in word_indices:
+            offset_in_line, target_letters = extract_word_letters_and_offset_in_line(
+                cyphertext_line, target_word_index
+            )
+            if offset_in_line is not None and target_letters:
+                total_offset = letter_prefix[line_idx] + offset_in_line
+                constraint_items.append((total_offset, target_letters))
+
+    if not constraint_items:
+        return None
+
+    # Try key lengths in range and backtrack over crib choices
+    for key_length in range(min_key_length, max_key_length + 1):
+        crib_options: List[Tuple[int, str, List[str]]] = []
+        for abs_offset, cypher_letters in constraint_items:
+            length_needed = len(cypher_letters)
+            candidates = [crib for crib in CRIB_WORDS if len(crib) == length_needed]
+            crib_options.append((abs_offset, cypher_letters, candidates))
+
+        initial_key: List[Optional[int]] = [None] * key_length
+        stack: List[Tuple[int, List[Optional[int]]]] = [(0, initial_key[:])]
+
+        while stack:
+            item_index, current_key = stack.pop()
+
+            if item_index == len(crib_options):
+                if any(shift is None for shift in current_key):
+                    continue
+                resolved_key = [int(shift) for shift in current_key]  # type: ignore
+                key_string = "".join(INDEX_TO_LETTER[s] for s in resolved_key)
+                return key_length, resolved_key, key_string
+
+            abs_offset, cypher_letters, candidates = crib_options[item_index]
+
+            if not candidates:
+                stack.append((item_index + 1, current_key[:]))
+                continue
+
+            for crib_word in candidates:
+                new_key = current_key[:]
+                if apply_crib_constraints(cypher_letters, crib_word, abs_offset, key_length, new_key):
+                    stack.append((item_index + 1, new_key))
+
+    return None
+
+
+def auto_solve_with_continue_fallback(
+        cypher_lines: List[str],
+        word_indices: Iterable[int],
+        min_key_length: int = 1,
+        max_key_length: int = 64,
+) -> Tuple[Optional[Tuple[int, List[int], str]], bool]:
+    """
+    Try to solve using the current CONTINUE_ACROSS_LINES.
+    If no result, flip the flag and try again.
+    If the flipped attempt succeeds, update the module-level CONTINUE_ACROSS_LINES.
+    Returns (result, used_flag).
+    """
+    global CONTINUE_ACROSS_LINES
+
+    # First attempt: use the current setting
+    attempt_flag = CONTINUE_ACROSS_LINES
+    result = solve_key_from_words(
+        cypher_lines,
+        word_indices,
+        min_key_length=min_key_length,
+        max_key_length=max_key_length,
+        continue_across_lines=attempt_flag,
+    )
+    if result is not None:
+        return result, attempt_flag
+
+    # Second attempt: flip the setting
+    flipped_flag = not attempt_flag
+    result = solve_key_from_words(
+        cypher_lines,
+        word_indices,
+        min_key_length=min_key_length,
+        max_key_length=max_key_length,
+        continue_across_lines=flipped_flag,
+    )
+    if result is not None:
+        CONTINUE_ACROSS_LINES = flipped_flag  # auto-update for the rest of the run
+
+    return result, flipped_flag
+
+
+def print_per_item_keys(
+        cypher_lines: List[str],
+        word_indices: Iterable[int],
+        solved_key_length: int,
+        solved_key_shifts: List[int],
+        continue_across_lines: bool = True,
+) -> None:
+    """
+    For each (line, word_index), try each length-matching crib and print the key if
+    constraints from that single word are compatible with the solved key.
+    Prints the key as letters (no numeric shifts).
+    """
+    solved_key_string = "".join(INDEX_TO_LETTER[s] for s in solved_key_shifts)
+    letter_prefix = build_letter_prefix(cypher_lines) if continue_across_lines else [0] * len(cypher_lines)
+
+    for line_idx, cyphertext_line in enumerate(cypher_lines):
+        for target_word_index in word_indices:
+            offset_in_line, target_letters = extract_word_letters_and_offset_in_line(
+                cyphertext_line, target_word_index
+            )
+            if offset_in_line is None or not target_letters:
+                continue
+
+            abs_offset = letter_prefix[line_idx] + offset_in_line
+            candidates = [crib for crib in CRIB_WORDS if len(crib) == len(target_letters)]
+            matched_any = False
+
+            for crib_word in candidates:
+                temp_key: List[Optional[int]] = [None] * solved_key_length
+                if not apply_crib_constraints(target_letters, crib_word, abs_offset, solved_key_length, temp_key):
+                    continue
+
+                # Verify constrained positions match the solved key
+                compatible = True
+                for pos, maybe_shift in enumerate(temp_key):
+                    if maybe_shift is not None and maybe_shift != solved_key_shifts[pos]:
+                        compatible = False
+                        break
+
+                if compatible:
+                    matched_any = True
+                    if compatible:
+                        matched_any = True
+                        key_string = "".join(INDEX_TO_LETTER[s] for s in solved_key_shifts)
+                        if continue_across_lines:
+                            print(f"Line {line_idx}, word {target_word_index} ('{crib_word}') -> key: '{key_string}'")
+                        else:
+                            print(
+                                f"Line {line_idx}, word {target_word_index} ('{crib_word}') "
+                                f"-> key: '{key_string}' (shifts {solved_key_shifts})"
+                            )
+
+            if not matched_any:
+                print(f"Line {line_idx}, word {target_word_index} -> no matching crib")
+
+
+def print_key_header(key_length: int, key_shifts: List[int], continue_across_lines: bool) -> None:
+    """Pretty-print the key; include numeric shifts only when not continuing across lines."""
+    key_string = "".join(INDEX_TO_LETTER[s] for s in key_shifts)
+    if continue_across_lines:
+        print(f"Found key length: {key_length}, key: '{key_string}'")
+    else:
+        print(f"Found key length: {key_length}, key: '{key_string}' (shifts {key_shifts})")
+
+
+if __name__ == "__main__":
+
+    result, used_flag = auto_solve_with_continue_fallback(
+        cypher_text,
+        word_indices=WORD_INDICES,
+        min_key_length=3,
+        max_key_length=10,
+    )
+
+    if not result:
+        print("No fully constrained key found in the tested key-length range.")
+    else:
+        key_length, key_shifts, key_string = result
+        print_key_header(key_length, key_shifts, used_flag)
+        print(f"\nDecryption: (key continues across lines: {used_flag})")
+        for line in decrypt_lines_with_key_preserving_nonletters(
+                cypher_text, key_shifts, continue_across_lines=used_flag
+        ):
+            print("  " + line)
