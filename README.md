@@ -39,11 +39,11 @@ Decryption: (key continues across lines: False)
 
 The first word of each line is a system in the game followed by the order in which the megaship will be visiting each system.
 
-Nukamba: https://inara.cz/elite/starsystem/10258/ 
-Graffias: https://inara.cz/elite/starsystem/393702/ 
-Vodyakamana: https://inara.cz/elite/starsystem/10220/ 
-Marfic: https://inara.cz/elite/starsystem/27700/ 
-Upaniklis: https://inara.cz/elite/starsystem/10408/ 
+Nukamba: https://inara.cz/elite/starsystem/10258/  
+Graffias: https://inara.cz/elite/starsystem/393702/  
+Vodyakamana: https://inara.cz/elite/starsystem/10220/  
+Marfic: https://inara.cz/elite/starsystem/27700/  
+Upaniklis: https://inara.cz/elite/starsystem/10408/  
 
 
 Reference link:
