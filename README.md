@@ -47,4 +47,4 @@ Upaniklis: https://inara.cz/elite/starsystem/10408/
 
 
 Reference link:
-https://inara.cz/elite/cmdr-logbook-entry/35228/88804/
+https://inara.cz/elite/cmdr-logbook-entry/35228/88804/  
